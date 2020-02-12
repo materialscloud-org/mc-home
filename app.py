@@ -317,8 +317,8 @@ class AppBase():
             for key, value in self.repo.get_refs().items():
                 if key.endswith('HEAD'):
                     continue
-                elif key.startswith('refs/heads/'):
-                    continue
+#                elif key.startswith('refs/heads/'):
+#                    continue
                 obj = self.repo.get_object(value)
                 if type(obj) == Tag:
                     self._refs_dict[key] = obj.object[1]
@@ -341,7 +341,7 @@ class AppBase():
                 return {}
 
             # add remote branches
-            available = OrderedDict({name.split('/')[-1]:name
+            available = OrderedDict({'/'.join(name.split('/')[3:]):name
                                      for name, _ in self.refs_dict.items()
                                      if name.startswith('refs/remotes/')})
 
@@ -355,7 +355,7 @@ class AppBase():
                         available[branch_label] = name
 
             # add tags
-            available.update(sorted({name.split('/')[-1]:name
+            available.update(sorted({'/'.join(name.split('/')[2:]):name
                                      for name, _ in self.refs_dict.items()
                                      if name.startswith('refs/tags/')}.items(),reverse=True))
             self._available_versions = available
