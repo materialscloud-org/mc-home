@@ -151,6 +151,7 @@ class AppManagerWidget(ipw.VBox):
         self.include_prereleases = ipw.Checkbox(description="Include prereleases")
         ipw.dlink((self.include_prereleases, 'value'), (self.app, "include_prereleases"))
         self.app.observe(self._refresh_prereleases, names=["has_prereleases", "installed_version"])
+        self._refresh_prereleases(change=dict(owner=self.app))  # initialize
         children.insert(4, self.include_prereleases)
 
         super().__init__(children=children)
