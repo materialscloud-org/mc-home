@@ -8,6 +8,7 @@ import traitlets
 import ipywidgets as ipw
 from jinja2 import Template
 from aiidalab.app import AppVersion
+from packaging.version import parse
 
 from home.widgets import StatusHTML, Spinner
 from home.utils import load_logo
@@ -25,6 +26,7 @@ class VersionSelectorWidget(ipw.VBox):
     """Class to choose app's version."""
 
     disabled = traitlets.Bool()
+    prereleases = traitlets.Bool()
 
     def __init__(self, *args, **kwargs):
         style = {'description_width': '100px'}
@@ -145,6 +147,12 @@ class AppManagerWidget(ipw.VBox):
         self.version_selector.version_to_install.observe(self._refresh_widget_state, 'value')
         children.insert(2, self.version_selector)
 
+        # Prereleases opt-in
+        self.include_prereleases = ipw.Checkbox(description="Include prereleases")
+        ipw.dlink((self.include_prereleases, 'value'), (self.app, "include_prereleases"))
+        self.app.observe(self._refresh_prereleases, names=["has_prereleases", "installed_version"])
+        children.insert(4, self.include_prereleases)
+
         super().__init__(children=children)
 
         self.app.observe(self._refresh_widget_state)
@@ -163,6 +171,21 @@ class AppManagerWidget(ipw.VBox):
             return '[n/a]'
 
         return version
+
+    def _refresh_prereleases(self, change):
+        app = change["owner"]
+        installed_version = app.installed_version
+
+        has_prereleases = app.has_prereleases
+        prerelease_installed = parse(installed_version).is_prerelease if isinstance(installed_version, str) else False
+
+        with self.hold_trait_notifications():
+            # Onl show check box if the app has any prereleases:
+            self.include_prereleases.layout.visibility = 'visible' if has_prereleases else 'hidden'
+            # Can not disable the check box if a prerelease is installed:
+            self.include_prereleases.disabled = prerelease_installed
+            # The checkbox is checked if it was already checked or a prerelease is installed:
+            self.include_prereleases.value = self.include_prereleases.value or prerelease_installed
 
     def _refresh_widget_state(self, _=None):
         """Refresh the widget to reflect the current state of the app."""
@@ -190,7 +213,7 @@ class AppManagerWidget(ipw.VBox):
                 tooltip_danger = "Operation will lead to potential loss of local modifications!"
             else:
                 tooltip_danger = "Operation blocked due to local modifications."
-            tooltip_incompatible = "The app is not supported for this version of the environment."
+            tooltip_incompatible = "The app is not supported for this environment."
 
             # Determine whether we can install, updated, and uninstall.
             can_switch = installed_version != self.version_selector.version_to_install.value and available_versions
@@ -243,7 +266,7 @@ class AppManagerWidget(ipw.VBox):
                     'is not on the specified release line.'
             elif not compatible:
                 self.issue_indicator.value = \
-                    f'<i class="fa fa-{warn_or_ban_icon}"></i> The app is not supported for this version of the environment.'
+                    f'<i class="fa fa-{warn_or_ban_icon}"></i> The app is not supported for this environment.'
             else:
                 self.issue_indicator.value = ''
             self.blocked_ignore.layout.visibility = 'visible' if (detached or not compatible) else 'hidden'
